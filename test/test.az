@@ -1,0 +1,13 @@
+this is a function definition with a comment on top:
+:: 'map' a -> b [a]    => [b]
+         f      (a:as) = f a : map f as
+         f      []     = []
+
+... and a type
+co :> '[' a ']' = '[]'
+             | a ':' [a]
+
+this is how a typeclass could look like:
+:? Functor f =
+   :: 'fmap' a -> b f(a) => f(b)
+   :: a '<$' f(b) => f(a)
