@@ -2,35 +2,35 @@ module Language where
 
 import Data.Word
 
-newtype AzProg = Prog [AzItem]                               -- program
-data AzItem = FuncDecl AzFuncDecl | TypeDecl AzTypeDecl      -- program item
+newtype L1Prog = Prog [L1Item]                               -- program
+data L1Item = FuncDecl L1FuncDecl | TypeDecl L1TypeDecl      -- program item
 
-type AzFuncDecl = (AzFuncSignature, [AzFuncVariant])         -- function declaration
-data AzFuncSignature                                         -- function signature
-  = SAp AzFuncSignature AzFuncSignature
+type L1FuncDecl = (L1FuncSignature, [L1FuncVariant])         -- function declaration
+data L1FuncSignature                                         -- function signature
+  = SAp L1FuncSignature L1FuncSignature
   | SType Type
   | SSymbol Symbol
-type AzFuncVariant = ([Either AzTypeVariant Symbol], AzExpr) -- function variant
+type L1FuncVariant = ([Either L1TypeVariant Symbol], L1Expr) -- function variant
 
-type AzTypeDecl = (AzTypeSignature, [AzTypeVariant])         -- type declaration
-type AzTypeVariant = [Either Type Symbol]                    -- type variant
-type AzTypeSignature = [Either Type Symbol]
+type L1TypeDecl = (L1TypeSignature, [L1TypeVariant])         -- type declaration
+type L1TypeVariant = [Either Type Symbol]                    -- type variant
+type L1TypeSignature = [Either Type Symbol]
 
-data AzExpr                                                  -- expression
+data L1Expr                                                  -- expression
   = EVar Symbol          -- variable
   | EByte Word8          -- byte
-  | EAp AzExpr AzExpr    -- function application
+  | EAp L1Expr L1Expr    -- function application
   | ELet                 -- let expression
-    [(Symbol, AzExpr)]   --   variable definitions
-    AzExpr               --   body
+    [(Symbol, L1Expr)]   --   variable definitions
+    L1Expr               --   body
   | ECase                -- case expression
-    AzExpr               -- expression to scrutinize
-    [AzFuncVariant]      --   variants
+    L1Expr               -- expression to scrutinize
+    [L1FuncVariant]      --   variants
 
 type Symbol = String                                       -- symbol
-data Type = Concrete String | Polymorphic String           -- type; concrete or polymorphic
+data Type = Concrete String | Polymorphic Char             -- type; concrete or polymorphic
 
-isAtomicExpr :: AzExpr -> Bool
+isAtomicExpr :: L1Expr -> Bool
 isAtomicExpr (EVar _)  = True
 isAtomicExpr (EByte _) = True
 isAtomicExpr _         = False
@@ -40,39 +40,39 @@ isAtomicExpr _         = False
 --                  Pretty-Printing                 --
 ------------------------------------------------------
 
-instance Show AzExpr where
+instance Show L1Expr where
   show (EVar v)          = v
   show (EByte b)         = show b
   show (EAp a b)         = "(" ++ show a ++ " " ++ show b ++ ")"
   show (ELet defs body)  = "let " ++ showDefs defs ++ " in " ++ show body
   show (ECase expr vars) = "switch (" ++ show expr ++ ") \n" ++ showFuncVars 2 vars
 
-instance Show AzFuncSignature where
+instance Show L1FuncSignature where
   show (SAp a b)               = "(" ++ show a ++ " " ++ show b ++ ")"
-  show (SType (Concrete s))    = "<" ++ s ++ ">"
-  show (SType (Polymorphic s)) = s
+  show (SType (Concrete s))    = s
+  show (SType (Polymorphic c)) = [c]
   show (SSymbol s)             = "'" ++ s ++ "'"
 
-instance Show AzItem where
+instance Show L1Item where
   show (FuncDecl (sig, vars)) = ":: " ++ show sig ++ showFuncVars 1 vars
   show (TypeDecl (sig, vars)) = ":> " ++ showTypeSig sig ++ showTypeVars vars
 
-instance Show AzProg where
+instance Show L1Prog where
   show (Prog items) = foldl (\p n -> p ++ "\n\n" ++ show n) "[prog] where" items
 
 instance Show Type where
-  show (Concrete s) = "<" ++ s ++ ">"
-  show (Polymorphic s) = s
+  show (Concrete s) = s
+  show (Polymorphic c) = [c]
 
 
-showDefs :: [(Symbol, AzExpr)] -> String
+showDefs :: [(Symbol, L1Expr)] -> String
 showDefs = foldl (\p n -> p ++ ", " ++ fst n ++ " = " ++ show (snd n)) ""
 
-showFuncVars :: Int -> [([Either AzTypeVariant Symbol], AzExpr)] -> String
+showFuncVars :: Int -> [([Either L1TypeVariant Symbol], L1Expr)] -> String
 showFuncVars indent = foldl (\p n -> p ++ "\n" ++ tabs ++ show (fst n) ++ " = " ++ show (snd n)) tabs
   where tabs = concat $ replicate indent "\t"
 
-showTypeSig :: AzTypeSignature -> String
+showTypeSig :: L1TypeSignature -> String
 showTypeSig = undefined
 
 showTypeVars :: [[Either Type Symbol]] -> String
@@ -87,7 +87,7 @@ showTypeVars = foldl (\p n -> p ++ " | " ++ variant n) ""
 --                           Prelude                          --
 ----------------------------------------------------------------
 
-prelude :: AzProg
+prelude :: L1Prog
 prelude = Prog [
-  FuncDecl (SAp (SType (Polymorphic "x")) (SType (Polymorphic "x")), [([Right "x"], EVar "x")])
+  FuncDecl (SAp (SType (Polymorphic 'x')) (SType (Polymorphic 'x')), [([Right "x"], EVar "x")])
                ]

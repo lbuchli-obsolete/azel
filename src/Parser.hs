@@ -4,83 +4,83 @@ import Control.Applicative (many, (<|>))
 import Text.Parsec.String (Parser)
 import Text.Parsec.Char
 import Text.Parsec.Error (ParseError)
-import Text.Parsec (parse, parseTest, manyTill, many1, try, optional, notFollowedBy, eof)
+import Text.Parsec (parse, parseTest, manyTill, many1, try, optional, notFollowedBy, eof, choice)
 import Text.Parsec.Prim ((<?>))
 import Control.Monad (void)
 import Data.Word (Word8)
 import Data.Bits (rotate)
 import Language
 
-azParse :: String -> String -> Either ParseError AzProg
+azParse :: String -> String -> Either ParseError L1Prog
 azParse = parse parseProg
 
 testParse :: String -> IO ()
-testParse = parseTest (parseAzFuncDecl <* eof)
+testParse = parseTest (parseL1FuncVariant <* optional (symbol "\n") <* eof)
 
-parseProg :: Parser AzProg
-parseProg = Prog <$> many (try parseAzItem) <* (eof <|> (many anyChar >>= fail))
+parseProg :: Parser L1Prog
+parseProg = Prog <$> many (try parseL1Item) <* (eof <|> (many anyChar >>= fail))
 
-parseAzItem :: Parser AzItem
-parseAzItem
-  =   try (FuncDecl <$> parseAzFuncDecl <?> "function declaration")
-  <|> try (TypeDecl <$> parseAzTypeDecl <?> "type declaration")
-  <|> ((skipLine <?> "comment line") *> parseAzItem)
+parseL1Item :: Parser L1Item
+parseL1Item
+  =   try (FuncDecl <$> parseL1FuncDecl <?> "function declaration")
+  <|> try (TypeDecl <$> parseL1TypeDecl <?> "type declaration")
+  <|> ((skipLine <?> "comment line") *> parseL1Item)
 
-parseAzFuncDecl :: Parser AzFuncDecl
-parseAzFuncDecl = symbol "::" *> ((,) <$> parseAzFuncSignature <*> parseVariants)
-  where parseVariants = many1 (indentNewline *> parseAzFuncVariant <* optional ws) <* optional newline
+parseL1FuncDecl :: Parser L1FuncDecl
+parseL1FuncDecl = symbol "::" *> ((,) <$> (parseL1FuncSignature <?> "function signature") <*> parseVariants)
+  where parseVariants = many1 (indentNewline *> parseL1FuncVariant <?> "function variant") <* optional newline
 
-parseAzFuncSignature :: Parser AzFuncSignature
-parseAzFuncSignature
-  = try $ SAp <$> parseAzFuncSignatureNR <*> (symbol "=>" *> parseAzFuncSignatureNR)
-  <|> parseAzFuncSignatureNR
+parseL1FuncSignature :: Parser L1FuncSignature
+parseL1FuncSignature
+  = try $ SAp <$> parseL1FuncSignatureNR <*> (symbol "=>" *> parseL1FuncSignatureNR)
+  <|> parseL1FuncSignatureNR
 
 -- Parse function signature without return (=>)
-parseAzFuncSignatureNR :: Parser AzFuncSignature
-parseAzFuncSignatureNR
-  = mkApChain SAp <$> many1 parseAzFuncSignatureNAp
+parseL1FuncSignatureNR :: Parser L1FuncSignature
+parseL1FuncSignatureNR
+  = mkApChain SAp <$> many1 parseL1FuncSignatureNAp
 
 -- Parse function signature without application
-parseAzFuncSignatureNAp :: Parser AzFuncSignature
-parseAzFuncSignatureNAp
-  = try (mkApChain SAp <$> ((:) <$> parseAzFuncSignatureNA <*> many (symbol "->" *> parseAzFuncSignatureNA)))
-  <|> parseAzFuncSignatureNA
+parseL1FuncSignatureNAp :: Parser L1FuncSignature
+parseL1FuncSignatureNAp
+  = try (mkApChain SAp <$> ((:) <$> parseL1FuncSignatureNA <*> many (symbol "->" *> parseL1FuncSignatureNA)))
+  <|> parseL1FuncSignatureNA
   
 -- Parse function signature without arrow
-parseAzFuncSignatureNA :: Parser AzFuncSignature
-parseAzFuncSignatureNA = symbol "(" *> parseAzFuncSignatureNR <* symbol ")"
+parseL1FuncSignatureNA :: Parser L1FuncSignature
+parseL1FuncSignatureNA = symbol "(" *> parseL1FuncSignatureNR <* symbol ")"
   <|> SSymbol <$> (string "'" *> manyTill anyNoSpace (symbol "'"))
   <|> notFollowedBy (symbol "->" <|> symbol "=>") *> (SType <$> parse_type)
   where
     parse_type
-      = Concrete <$> (symbol "<" *> manyTill anyNoSpace (symbol ">"))
-      <|> Polymorphic <$> many1 anyNoSpace <* optional ws
+      = Polymorphic <$> anyAlpha <* optional ws
+      <|> Concrete <$> anyNotSymbol ["(", ")"]
 
-parseAzFuncVariant :: Parser AzFuncVariant
-parseAzFuncVariant = (,) <$> var_decls <*> (symbol "=" *> parseAzExpr)
+parseL1FuncVariant :: Parser L1FuncVariant
+parseL1FuncVariant = (,) <$> var_decls <*> (symbol "=" *> parseL1Expr)
   where
-    var_decls = many $ Right <$> (many1 (notFollowedBy (symbol "=") *> anyNoSpace) <* ws)
+    var_decls = many $ Right <$> anyNotSymbol ["="]
 
-parseAzExpr :: Parser AzExpr
-parseAzExpr = mkApChain EAp <$> many1 (parseAzExprNAp <* optional ws)
+parseL1Expr :: Parser L1Expr
+parseL1Expr = mkApChain EAp <$> many1 (parseL1ExprNAp <* optional ws) <?> "expression"
 
 -- Parse expression without application
-parseAzExprNAp :: Parser AzExpr
-parseAzExprNAp
-  =   try $ symbol "(" *> parseAzExpr <* symbol ")" <* optional ws
+parseL1ExprNAp :: Parser L1Expr
+parseL1ExprNAp
+  =   try $ symbol "(" *> parseL1Expr <* symbol ")" <* optional ws
   <|> try parseELet
   <|> try parseECase
   <|> try (EByte <$> (string "0" *> hexNumber <* optional ws))
-  <|> EVar <$> many1 anyNoSpace <* optional ws
+  <|> EVar <$> anyNotSymbol []
 
-parseELet :: Parser AzExpr
+parseELet :: Parser L1Expr
 parseELet = symbol "let" *> undefined
 
-parseECase :: Parser AzExpr
+parseECase :: Parser L1Expr
 parseECase = symbol "match" *> undefined 
 
-parseAzTypeDecl :: Parser AzTypeDecl
-parseAzTypeDecl = symbol ":>" *> undefined -- TODO
+parseL1TypeDecl :: Parser L1TypeDecl
+parseL1TypeDecl = symbol ":>" *> undefined -- TODO
 
 symbol :: String -> Parser String
 symbol s = string s <* optional ws
@@ -93,6 +93,14 @@ indentNewline = optional ws *> newline *> ws
 
 anyNoSpace :: Parser Char
 anyNoSpace = noneOf "\n\t "
+
+anyNotSymbol :: [String] -> Parser String
+anyNotSymbol nots = checkNots *> many1 anyNoSpace <* optional ws
+  where
+    checkNots = notFollowedBy (choice (map string nots)) <|> void (string "\\")
+
+anyAlpha :: Parser Char
+anyAlpha = oneOf "abcdefghijklmnopqrstuvwxyz"
 
 skipLine :: Parser String
 skipLine = manyTill anyChar newline
