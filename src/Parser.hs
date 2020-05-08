@@ -3,19 +3,25 @@ module Parser where
 import Control.Applicative (many, (<|>))
 import Text.Parsec.String (Parser)
 import Text.Parsec.Char
-import Text.Parsec.Error (ParseError)
-import Text.Parsec (parse, parseTest, manyTill, many1, try, optional, notFollowedBy, eof, choice)
+import Text.Parsec.Error()
+import Text.Parsec (parse, manyTill, many1, try, optional, notFollowedBy, eof, choice)
 import Text.Parsec.Prim ((<?>))
 import Control.Monad (void)
+import Data.Bifunctor (first)
 import Data.Word (Word8)
 import Data.Bits (rotate)
 import Language
+import Util
 
 -- azParse :: String -> String -> Either ParseError L1
 -- azParse = parse parseProg
 
 -- testParse :: String -> IO ()
 -- testParse = parseTest (parseL1FuncDecl <* optional (symbol "\n") <* eof)
+
+parseSource :: SourceName -> Translator L0 L1
+parseSource name = first (Error . show) $ parse parseProg name $ toStr
+  where toStr (L0Prog str) = str
 
 parseProg :: Parser L1
 parseProg = L1Prog <$> many (try parseL1Item) <* (eof <|> (many anyChar >>= fail))

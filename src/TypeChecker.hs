@@ -4,5 +4,5 @@ import Language
 import Util
 
 
-typeCheck :: SourceName -> Parser L1 L2
-typeCheck name src = undefined
+typeCheck :: SourceName -> Translator L1 L2
+typeCheck name = undefined

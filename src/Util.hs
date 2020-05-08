@@ -15,20 +15,17 @@ flatten (Right (Right b)) = Right b
 --                     Parser                    --
 ---------------------------------------------------
 
-type Parser a b = a -> Either Error b
+newtype Translator a b = Translator {
+  translate :: a -> Either Error b
+}
 
-(.&.) :: Parser a b -> Parser b c -> Parser a c
-(.&.) pA pB inp = flatten $ second pB (pA inp)
-
-(.|.) :: Parser a b -> Parser a b -> Parser a b
-(.|.) pA pB inp = case pA inp of
-  Left err -> case pB inp of
-    Left _ -> Left err
-    Right res -> Right res
-  Right res -> Right res
-
-(.$.) :: (b -> c) -> Parser a b -> Parser a c
-(.$.) f p inp = second f (p inp)
-
-(.*.) :: Parser a b -> Parser a c -> Parser a (b -> c)
-(.*.) = undefined
+instance Functor (Translator a) where
+  fmap f p = Translator $ (\translator a -> second f $ translator a) (translate p)
+  
+instance Applicative (Translator a) where
+  pure a = Translator $ \_ -> Right a
+  (<*>) a b = Translator $ \inp -> apply (translate a inp) (translate b inp)
+    where
+      apply (Right resA) (Right resB) = Right (resA resB)
+      apply (Left errA) _             = Left errA
+      apply _           (Left errB)   = Left errB
