@@ -11,14 +11,14 @@ import Data.Word (Word8)
 import Data.Bits (rotate)
 import Language
 
-azParse :: String -> String -> Either ParseError L1Prog
-azParse = parse parseProg
+-- azParse :: String -> String -> Either ParseError L1
+-- azParse = parse parseProg
 
-testParse :: String -> IO ()
-testParse = parseTest (parseL1FuncVariant <* optional (symbol "\n") <* eof)
+-- testParse :: String -> IO ()
+-- testParse = parseTest (parseL1FuncDecl <* optional (symbol "\n") <* eof)
 
-parseProg :: Parser L1Prog
-parseProg = Prog <$> many (try parseL1Item) <* (eof <|> (many anyChar >>= fail))
+parseProg :: Parser L1
+parseProg = L1Prog <$> many (try parseL1Item) <* (eof <|> (many anyChar >>= fail))
 
 parseL1Item :: Parser L1Item
 parseL1Item
@@ -28,7 +28,7 @@ parseL1Item
 
 parseL1FuncDecl :: Parser L1FuncDecl
 parseL1FuncDecl = symbol "::" *> ((,) <$> (parseL1FuncSignature <?> "function signature") <*> parseVariants)
-  where parseVariants = many1 (indentNewline *> parseL1FuncVariant <?> "function variant") <* optional newline
+  where parseVariants = many1 (try indentNewline *> parseL1FuncVariant <?> "function variant") <* optional newline
 
 parseL1FuncSignature :: Parser L1FuncSignature
 parseL1FuncSignature
