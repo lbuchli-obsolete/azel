@@ -68,6 +68,8 @@ data L2Func = L2Func {
   variants :: [L2FuncVariant]
 }
 
+type L2TypeOrPoly = Either L2TypeRef L2PolymorphicType
+
 data L2FuncSignature
   = S2Ap L2FuncSignature L2FuncSignature
   | S2Type (Either L2TypeRef L2PolymorphicType)
@@ -75,7 +77,7 @@ data L2FuncSignature
 
 data L2TypeRef = L2TypeRef {
   sTypeNr :: Int,
-  sArgs :: [Either L2TypeRef L2PolymorphicType]
+  sArgs :: [L2TypeOrPoly]
 }
 type L2PolymorphicType = Int
 
@@ -87,7 +89,9 @@ data L2TypeVariantRef a = L2TypeVariantRef {
 type L2Variable = Int
 
 type L2FuncVariant = ([Either (L2TypeVariantRef L2Variable) L2Variable], L2Expr)
-data L2Expr
+
+data L2Expr = L2Expr L2TypeOrPoly L2ExprVal
+data L2ExprVal
   = E2Var L2Variable       -- variable
   | E2Byte Word8           -- byte
   | E2Ap L2Expr L2Expr     -- application
