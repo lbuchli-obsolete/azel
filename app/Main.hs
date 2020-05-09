@@ -1,3 +1,4 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 module Main where
 
 import Lib
@@ -10,9 +11,8 @@ main :: IO ()
 main = do
   handle <- openFile file ReadMode
   contents <- hGetContents handle
-  -- case azParse file contents of
-  --   Left err     -> print err
-  --   Right result -> print result -- TODO pretty-print
-  testParse contents
+  case translate parseSource file (source contents) of
+    Left (err :: Error)  -> print err
+    Right (result :: L1) -> print result
+  -- testParse contents
   hClose handle
-  
