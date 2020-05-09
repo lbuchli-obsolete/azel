@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: f1013e77d4104470857010be2c32148e56d2d18a776485836958798ccad6b297
+-- hash: d721e861e4f1ba77e34b6a8f119a4878527166c35151c9f4566072298c2404ff
 
 name:           azel
 version:        0.1.0.0
@@ -30,6 +30,8 @@ library
       Language
       Lib
       Parser
+      TypeChecker
+      Util
   other-modules:
       Paths_azel
   hs-source-dirs:

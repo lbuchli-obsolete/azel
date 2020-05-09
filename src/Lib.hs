@@ -1,13 +1,13 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 module Lib (
   SourceName,
-  L0, source,
-  L1, L2
+  Error,
+  Translator(..),
+  L0, L1, L2,
+  source, parseSource, typeCheck
 ) where
 
-import Text.Parsec (parse, ParseError)
-import Data.Bifunctor
 import Util
+import Language
 import Parser
 import TypeChecker
-import Language

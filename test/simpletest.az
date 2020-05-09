@@ -1,2 +1,4 @@
-:: 'map' a -> b [a] => b
-         f      as  = as
+:> 'Maybe' a b => Left' a | 'Right' b
+
+:: 'map' a -> b [ a ] => [ b ]
+         f      as    = bs

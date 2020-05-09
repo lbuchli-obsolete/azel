@@ -4,7 +4,7 @@ import Control.Applicative (many, (<|>))
 import Text.Parsec.String (Parser)
 import Text.Parsec.Char
 import Text.Parsec.Error()
-import Text.Parsec (parse, manyTill, many1, try, optional, notFollowedBy, eof, choice)
+import Text.Parsec (parse, manyTill, many1, try, optional, notFollowedBy, eof, choice, lookAhead)
 import Text.Parsec.Prim ((<?>))
 import Control.Monad (void)
 import Data.Bifunctor (first)
@@ -17,14 +17,16 @@ import Util
 -- azParse = parse parseProg
 
 -- testParse :: String -> IO ()
--- testParse = parseTest (parseL1FuncDecl <* optional (symbol "\n") <* eof)
+-- testParse = parseTest (test_parser <* optional (symbol "\n") <* eof)
+--   where test_parser = parseProg
 
-parseSource :: SourceName -> Translator L0 L1
-parseSource name = first (Error . show) $ parse parseProg name $ toStr
+
+parseSource :: Translator L0 L1
+parseSource = Translator $ \srcname src -> first (Error . show) $ parse parseProg srcname $ toStr src
   where toStr (L0Prog str) = str
 
 parseProg :: Parser L1
-parseProg = L1Prog <$> many (try parseL1Item) <* (eof <|> (many anyChar >>= fail))
+parseProg = L1Prog <$> many parseL1Item <* optional indentNewline <* eof
 
 parseL1Item :: Parser L1Item
 parseL1Item
@@ -56,11 +58,7 @@ parseL1FuncSignatureNAp
 parseL1FuncSignatureNA :: Parser L1FuncSignature
 parseL1FuncSignatureNA = symbol "(" *> parseL1FuncSignatureNR <* symbol ")"
   <|> SSymbol <$> (string "'" *> manyTill anyNoSpace (symbol "'"))
-  <|> notFollowedBy (symbol "->" <|> symbol "=>") *> (SType <$> parse_type)
-  where
-    parse_type
-      = Polymorphic <$> anyAlpha <* optional ws
-      <|> Concrete <$> anyNotSymbol ["(", ")"]
+  <|> notFollowedBy (symbol "->" <|> symbol "=>") *> (SType <$> parseType)
 
 parseL1FuncVariant :: Parser L1FuncVariant
 parseL1FuncVariant = (,) <$> var_decls <*> (symbol "=" *> parseL1Expr)
@@ -86,7 +84,23 @@ parseECase :: Parser L1Expr
 parseECase = symbol "match" *> undefined 
 
 parseL1TypeDecl :: Parser L1TypeDecl
-parseL1TypeDecl = symbol ":>" *> undefined -- TODO
+parseL1TypeDecl = (,) <$> (symbol ":>" *> parseTypePart <* symbol "=>" <* try (optional indentNewline))
+  <*> ((:) <$> parseTypePart <*> many (
+          try (optional indentNewline) *>
+          symbol "|" *>
+          try (optional indentNewline) *>
+          parseTypePart
+      ))
+
+parseTypePart :: Parser [Either Type Symbol]
+parseTypePart = many (t_symbol <|> t_type)
+  where
+    t_symbol = Right <$> (string "'" *> manyTill anyNoSpace (symbol "'"))
+    t_type   = Left  <$> (notFollowedBy (symbol "=>" <|> symbol "|") *> parseType)
+
+parseType :: Parser Type
+parseType = try (Polymorphic <$> anyAlpha <* (ws <|> lookAhead (void newline)))
+          <|> Concrete <$> anyNotSymbol ["(", ")"]
 
 symbol :: String -> Parser String
 symbol s = string s <* optional ws
@@ -101,9 +115,9 @@ anyNoSpace :: Parser Char
 anyNoSpace = noneOf "\n\t "
 
 anyNotSymbol :: [String] -> Parser String
-anyNotSymbol nots = checkNots *> many1 anyNoSpace <* optional ws
+anyNotSymbol nots = checkNots *> optional (string "\\") *> many1 anyNoSpace <* optional ws
   where
-    checkNots = notFollowedBy (choice (map string nots)) <|> void (string "\\")
+    checkNots = notFollowedBy . choice $ map string nots
 
 anyAlpha :: Parser Char
 anyAlpha = oneOf "abcdefghijklmnopqrstuvwxyz"

@@ -2,8 +2,6 @@ module Language where
 
 import Data.Word
 
-type SourceName = String
-
 ----------------------------------------------------------------
 --                           Level 0                          --
 ----------------------------------------------------------------
@@ -119,7 +117,7 @@ instance Show L1FuncSignature where
 
 instance Show L1Item where
   show (FuncDecl (sig, vars)) = ":: " ++ show sig ++ showFuncVars 1 vars
-  show (TypeDecl (sig, vars)) = ":> " ++ showTypeSig sig ++ showTypeVars vars
+  show (TypeDecl (sig, vars)) = ":>" ++ showTypeSig sig ++ " =>" ++ showTypeVars vars
 
 instance Show L1 where
   show (L1Prog items) = foldl (\p n -> p ++ "\n\n" ++ show n) "[prog] where" items
@@ -137,10 +135,13 @@ showFuncVars indent = foldl (\p n -> p ++ "\n" ++ tabs ++ show (fst n) ++ " = " 
   where tabs = concat $ replicate indent "\t"
 
 showTypeSig :: L1TypeSignature -> String
-showTypeSig = undefined
+showTypeSig = foldl (\p n -> p ++ " " ++ sig_item n) ""
+  where
+    sig_item (Left t) = show t
+    sig_item (Right s) = "'" ++ s ++ "'"
 
 showTypeVars :: [[Either Type Symbol]] -> String
-showTypeVars = foldl (\p n -> p ++ " | " ++ variant n) ""
+showTypeVars vars = foldl (\p n -> p ++ " |" ++ variant n) (variant (head vars)) (tail vars)
   where
     variant = foldl (\p n -> p ++ " " ++ item n) ""
     item (Left t) = show t
